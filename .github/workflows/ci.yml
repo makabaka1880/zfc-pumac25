@@ -1,0 +1,147 @@
+# .github/workflows/ci.yml
+name: CI
+
+on:
+  push:
+    branches:
+      - 'main'
+      - 'release/*'
+    tags:
+      - '*'
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install expect
+        run: sudo apt-get update && sudo apt-get install -y expect
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get short SHA
+        id: shortSHA
+        run: echo "short_sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10.4'
+
+      - name: Setup elan toolchain on this build
+        run: |
+          curl -O --location https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh
+          chmod u+x elan-init.sh
+          ./elan-init.sh -y --default-toolchain none
+
+      - name: Set elan paths
+        run: echo "$HOME/.elan/bin" >> $GITHUB_PATH
+
+      - name: Install lean toolchain for examples
+        run: |
+          cd examples
+          lean --version
+
+      - name: Install lean toolchain for text
+        run: |
+          cd book
+          lean --version
+
+      - name: Cache examples/.lake
+        uses: actions/cache@v4
+        with:
+          path: examples/.lake
+          key: ${{ runner.os }}-${{ hashFiles('examples/lake-manifest.json') }}-${{ hashFiles('examples/lean-toolchain') }}-${{ steps.shortSHA.outputs.short_sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ hashFiles('examples/lake-manifest.json') }}-${{ hashFiles('examples/lean-toolchain') }}-
+
+      - name: Cache book/.lake
+        uses: actions/cache@v4
+        with:
+          path: book/.lake
+          key: ${{ runner.os }}-${{ hashFiles('book/lake-manifest.json') }}-${{ hashFiles('book/lean-toolchain') }}-${{ steps.shortSHA.outputs.short_sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ hashFiles('book/lake-manifest.json') }}-${{ hashFiles('book/lean-toolchain') }}-
+
+      - name: Build example code
+        run: |
+          pushd examples
+          lake build
+          lake build subverso-extract-mod
+          popd
+
+      - name: Save examples/.lake
+        uses: actions/cache/save@v4
+        with:
+          path: examples/.lake
+          key: ${{ runner.os }}-${{ hashFiles('examples/lake-manifest.json') }}-${{ hashFiles('examples/lean-toolchain') }}-${{ steps.shortSHA.outputs.short_sha }}
+
+      - name: Build book
+        run: |
+          pushd book
+          lake exe zfca --depth 2 --without-html-single --verbose
+          popd
+
+      - name: Save book/.lake
+        uses: actions/cache/save@v4
+        with:
+          path: book/.lake
+          key: ${{ runner.os }}-${{ hashFiles('book/lake-manifest.json') }}-${{ hashFiles('book/lean-toolchain') }}-${{ steps.shortSHA.outputs.short_sha }}
+
+      - name: Save examples/.lake again
+        uses: actions/cache/save@v4
+        with:
+          path: examples/.lake
+          key: ${{ runner.os }}-${{ hashFiles('examples/lake-manifest.json') }}-${{ hashFiles('examples/lean-toolchain') }}-${{ steps.shortSHA.outputs.short_sha }}
+
+      - name: Zip html contents
+        run: |
+          pushd book/_out
+          cp -r html-multi html
+          zip -rq html.zip html/
+          popd
+
+      - id: deploy-info
+        name: Compute Deployment Metadata
+        run: |
+          set -e
+          python3 -c 'import base64; print("alias="+base64.urlsafe_b64encode(bytes.fromhex("${{github.sha}}")).decode("utf-8").rstrip("="))' >> "$GITHUB_OUTPUT"
+          echo "message=$(git log -1 --pretty=format:%s)" >> "$GITHUB_OUTPUT"
+
+      - name: Release preview zip if a new tag is pushed
+        uses: softprops/action-gh-release@v2
+        if: ${{ startsWith(github.ref, 'refs/tags/pre-') }}
+        with:
+          files: book/_out/html.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Pages artifact
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: book/_out/html-multi
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: ${{ github.ref == 'refs/heads/main' }}
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

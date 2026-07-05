@@ -6,14 +6,14 @@ Author: David Thrane Christiansen
 
 import Std.Data.HashMap
 import VersoManual
-import TextbookTemplate
+import ZFCAczel
 
 open Verso Doc
 open Verso.Genre Manual
 
 open Std (HashMap)
 
-open TextbookTemplate
+open ZFCAczel
 
 
 -- Computes the path of this very `main`, to ensure that examples get names relative to it
@@ -31,7 +31,7 @@ partial def buildExercises (mode : Mode) (cfg : Config) (_state : TraverseState)
   let code := (← part text |>.run {}).snd
   let dest := cfg.destination / "example-code"
   let some mainDir := mainFileName.parent
-    | throw <| IO.userError "Can't find directory of `TextbookTemplateMain.lean`"
+    | throw <| IO.userError "Can't find directory of `ZFCAczelMain.lean`"
 
   IO.FS.createDirAll <| dest
   for ⟨fn, f⟩ in code do
@@ -80,10 +80,13 @@ where
     | .para .. | .code .. => pure ()
 
 
+def customCss : String := include_str "static" / "custom.css"
+
 def config : RenderConfig where
   emitTeX := false
   emitHtmlSingle := .no
   emitHtmlMulti := .immediately
   htmlDepth := 2
+  extraCssFiles := { ({filename := "custom.css", contents := customCss} : CssFile) }
 
-def main := manualMain (%doc TextbookTemplate) (extraSteps := [buildExercises]) (config := config)
+def main := manualMain (%doc ZFCAczel) (extraSteps := [buildExercises]) (config := config)
