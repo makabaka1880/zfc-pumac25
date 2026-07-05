@@ -24,7 +24,7 @@ open ZFCAczel
 
 #doc (Manual) "Set Theory" =>
 %%%
-tag := "c1:set-theory"
+tag := "c1-set-theory"
 %%%
 
 Before we can formalize the axioms of Zermelo–Fraenkel set theory within Lean, we must first understand what set theory is — and why the naive formulation that students first encounter in elementary mathematics turns out to be inconsistent. In this chapter, we trace the historical development of set theory from its intuitive origins to its modern axiomatic form, and we introduce the encoding of sets that will serve as the foundation for the rest of the book.

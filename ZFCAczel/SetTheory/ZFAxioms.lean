@@ -17,7 +17,8 @@ open ZFCAczel
 
 #doc (Manual) "The Axioms of Zermelo-Fraenkel" =>
 %%%
-tag := "c2:zf-axioms"
+file := "ZFAxoims"
+tag := "c1-s3-zf-axioms"
 %%%
 
 In this chapter we lay out the axioms of Zermelo–Fraenkel set theory (ZF). These axioms replace the naive comprehension principle discussed in the previous chapter with a carefully curated collection of set-existence principles: extensionality tells us when two sets are equal, while pairing, union, power set, separation, and replacement tell us how to build new sets from old ones. To this list we append the Axiom of Choice, which is independent of ZF but indispensable for much of modern mathematics. The resulting system is known as *ZFC* — Zermelo–Fraenkel set theory with Choice.
@@ -335,7 +336,7 @@ This fails, and the failure reveals *two independent obstacles* that shape the s
 
 *Why `Classical.choose` is irrelevant here.* You can force this ghost into existence by calling `Classical.choose` on the existential axiom, extracting a bare `ZFSet` into `Type`. We do, in fact, employ exactly this device for *global constants* — namely `∅` and `∞` — where we need a permanent, named term that persists across the development. Those are purely axiomatic, computationally opaque constants; we do not care about computational safety or constructive existence there, and the price of `Classical.choose` is justified by the need for a referent. For *local set-forming operations*, however, we deliberately refrain from doing so. There is simply no reason to extract a witness into `Type`, only to turn around and use that witness in a proof context. Lean already supports extracting witnesses *within* a proof context (`obtain`, `rcases`, etc.) exactly because the elimination of $`\exists` in `Prop` is allowed as long as the target is also `Prop`. To pull the witness into `Type` via `Classical.choose` and then pass it back into a propositional context is to force a round-trip through a computational artifact which is both conceptually unnecessary and stylistically at odds with the proof-theoretic spirit of the development. We keep the existential where it belongs.
 
-*Second obstacle: quotient erasure.* Even if we bypassed Prop by writing the axiom directly in `Type` as a $`\Sigma`-type, there is a second problem. Recall from {ref "ch:two-encoding"}[the Encoding chapter] that `ZFSet` is defined as a _quotient_ of `PSet` by extensional equivalence. `Quotient` erases the distinction between extensionally equivalent `PSet`s — a `ZFSet` is opaque. We cannot pattern-match on it, inspect its tree structure, count its elements, or extract an indexing type. The _only_ information a `ZFSet` carries is what the membership relation $`\in` tells us. If we somehow extracted a bare `ZFSet` from `axiom_pairing`, we would hold a set whose internal representation has been obliterated — a black box with no destructors.
+*Second obstacle: quotient erasure.* Even if we bypassed Prop by writing the axiom directly in `Type` as a $`\Sigma`-type, there is a second problem. Recall from {ref "c1-s2-encoding"}[the Encoding chapter] that `ZFSet` is defined as a _quotient_ of `PSet` by extensional equivalence. `Quotient` erases the distinction between extensionally equivalent `PSet`s — a `ZFSet` is opaque. We cannot pattern-match on it, inspect its tree structure, count its elements, or extract an indexing type. The _only_ information a `ZFSet` carries is what the membership relation $`\in` tells us. If we somehow extracted a bare `ZFSet` from `axiom_pairing`, we would hold a set whose internal representation has been obliterated — a black box with no destructors.
 
 For the same reason, we also *cannot* return a $`\Sigma`-type (dependent pair) in `Type`:
 

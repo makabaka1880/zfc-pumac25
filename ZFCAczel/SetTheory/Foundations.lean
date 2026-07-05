@@ -15,7 +15,8 @@ set_option linter.verso.markup.emph false
 
 #doc (Manual) "Naive Set Theory and the Path to ZF" =>
 %%%
-tag := "ch:one-history"
+file := "Foundations"
+tag := "c1-s1-history"
 %%%
 
 Mathematics, at its core, is the study of structure and relationship. But what kind of thing is the collection of all even numbers? The set of all groups up to isomorphism? The class of all topological spaces? To reason rigorously about such collections, we need a theory. This section explores the first attempt at such a theory — and why it failed.

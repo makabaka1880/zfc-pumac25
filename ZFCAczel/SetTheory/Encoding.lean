@@ -15,7 +15,8 @@ set_option linter.verso.markup.emph false
 
 #doc (Manual) "Encoding Sets in Dependent Type Theory" =>
 %%%
-tag := "ch:two-encoding"
+file := "Encoding"
+tag := "c1-s2-encoding"
 %%%
 
 Now that we have examined the historical motivation for axiomatic set theory, we turn to a practical question: how should we actually encode ZF sets inside a dependent type theory like Lean's? This section explores two approaches — the naive predicate interpretation, which is simple but limited, and Aczel's tree encoding, which is faithful but more subtle. Understanding both will prepare us for the full axiomatic development to come.
