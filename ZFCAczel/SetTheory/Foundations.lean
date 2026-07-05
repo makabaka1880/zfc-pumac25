@@ -1,6 +1,11 @@
-/-
-Copyright (c) 2025. All rights reserved.
--/
+-- Created by Sean L. on Jul. 5.
+-- Last Updated by Sean L. on Jul. 5.
+--
+-- zfc-aczel-pumac25
+-- ZFCAczel/SetTheory/Foundations.lean
+--
+-- Makabaka1880, 2026. All rights reserved.
+
 import VersoManual
 import ZFCAczel.Meta.Lean
 import ZFCAczel.Papers
