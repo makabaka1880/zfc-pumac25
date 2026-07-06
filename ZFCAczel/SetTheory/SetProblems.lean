@@ -202,16 +202,16 @@ theorem c1_s2_s2_2_exists_binary_union (x y : ZFSet.{u}) :
       refine ⟨y, hzy, ?_⟩
       exact (h_pair y).mpr (Or.inr rfl)
 
-noncomputable def cup (x y : ZFSet.{u}) :
+noncomputable def bin_union (x y : ZFSet.{u}) :
     ZFSet.{u} :=
   zfc_set_of (c1_s2_s2_2_exists_binary_union x y)
 
-theorem cup_spec (x y : ZFSet.{u}) :
+theorem bin_union_spec (x y : ZFSet.{u}) :
     ∀ z : ZFSet.{u},
-      z ∈ cup x y ↔ z ∈ x ∨ z ∈ y :=
+      z ∈ bin_union x y ↔ z ∈ x ∨ z ∈ y :=
   zfc_set_of_spec (c1_s2_s2_2_exists_binary_union x y)
 
-infix:65 " ∪ " => cup
+infix:65 " ∪ " => bin_union
 
 end PUMAC25
 ```
@@ -531,62 +531,126 @@ theorem c1_s2_q3_eq_pairs :
       have sgl_x_in_xy : singleton x ∈ ⟪x, y⟫ := by
         rw [spec_xy (singleton x)]
         left; exact singleton_spec x
-      have sgl_z_in_zw : singleton z ∈ ⟪z, w⟫ := by
-        rw [spec_zw (singleton z)]
-        left; exact singleton_spec z
-
       have sgl_x_in_zw : singleton x ∈ ⟪z, w⟫ :=
         (mem_ext (singleton x)).mp sgl_x_in_xy
-      constructor
-      · refine Or.elim
-          ((spec_zw (singleton x)).mp sgl_x_in_zw) ?_ ?_
-        · intro hsgl
-          exact eq_of_is_singleton_of_singleton hsgl
-        · intro hup
-          unfold is_uPair_of at hup
+
+      have hxz : x = z := by
+        rcases (spec_zw (singleton x)).mp
+          sgl_x_in_zw with (hsgl | hup)
+        · exact eq_of_is_singleton_of_singleton hsgl
+        · unfold is_uPair_of at hup
           have hz_mem_up := hup z
           have hz_eq_x := hz_mem_up.mpr $ Or.inl rfl
-          have hx_eq_z := (singleton_spec x z).mp hz_eq_x
-          simp_all
-      · refine Or.elim
-          ((spec_zw (singleton x)).mp sgl_x_in_zw) ?_ ?_
-        · intro hsgl
-          have hx_eq_z :=
-            eq_of_is_singleton_of_singleton hsgl
-          rw [←hx_eq_z] at spec_zw
-          have ⟨h_pair_in_xw_mp, _⟩ := spec_zw $ uPair x y
-          have h_uPair_memof_xw
-            : uPair x y ∈ ⟪x, w ⟫ := by sorry
-          refine Or.elim
-            (h_pair_in_xw_mp h_uPair_memof_xw) ?_ ?_
-          · intro h_pair_sin_of_x
-            suffices h_x_eq_w : x = w by
-              unfold is_singleton_of at h_pair_sin_of_x
-              have h :=
-                (h_pair_sin_of_x y).mp mem_upair_right
-              simp_all
-            have h_xw_in_xy : uPair x w ∈ ⟪x, y⟫ := by sorry
-            have h_xw_mem_either
-              := (spec_xy $ uPair x w).mp h_xw_in_xy
-            refine Or.elim h_xw_mem_either ?_ ?_
-            · intro h_xw_sin_of_x
-              unfold is_singleton_of at h_xw_sin_of_x
-              symm
-              exact (h_xw_sin_of_x w).mp mem_upair_right
-            · intro h_uPair
-              have x_eq_up := singleton_inj.mp
-                $ is_singleton_of_ext_iff.mp hsgl
-              have h_uzw_eq_uxy := upair_ext_of_is_upair_of h_uPair
-              have h_x_eq_uxy :=
-                is_singleton_of_ext_iff.mp h_pair_sin_of_x
-              have h_uxw_eq_x :=
-                Eq.trans h_x_eq_uxy (Eq.symm h_uzw_eq_uxy)
-              have h_sxOf_xw :=
-                is_singleton_of_ext_iff.mpr h_uxw_eq_x
-              exact is_singleton_of_upair_left_iff.mp h_sxOf_xw
-          · sorry
-        · sorry
-    · sorry
+          exact ((singleton_spec x z).mp hz_eq_x).symm
+
+      have up_xy_in_xy : uPair x y ∈ ⟪x, y⟫ := by
+        rw [spec_xy (uPair x y)]
+        right; exact uPair_spec x y
+      have up_xy_in_zw : uPair x y ∈ ⟪z, w⟫ :=
+        (mem_ext (uPair x y)).mp up_xy_in_xy
+      have hyw : y = w := by
+        rcases (spec_zw (uPair x y)).mp
+          up_xy_in_zw with (hsgl | hup)
+        · unfold is_singleton_of at hsgl
+          have hyz : y = z := (hsgl y).mp mem_upair_right
+          have spec_zz := orderedPair_spec z z
+          have up_zw_in_zz : uPair z w ∈ ⟪z, z⟫ := by
+            have up_zw_in_zw : uPair z w ∈ ⟪z, w⟫ := by
+              rw [spec_zw (uPair z w)]
+              right; exact uPair_spec z w
+            rw [hxz, hyz] at h_pair_eq
+            rw [h_pair_eq]
+            exact up_zw_in_zw
+          rcases (spec_zz (uPair z w)).mp
+            up_zw_in_zz with (hsgl' | hup')
+          · unfold is_singleton_of at hsgl'
+            exact ((hsgl' w).mp mem_upair_right).trans
+              hyz.symm |>.symm
+          · have up_eq : uPair z w = uPair z z :=
+              upair_ext_of_is_upair_of hup'
+            have hwz : w = z := by
+              have h_mem := (axiom_ext (uPair z w)
+                (uPair z z)).mpr up_eq
+              have hw_in_zz : w ∈ uPair z z := (h_mem w).mp
+                ((uPair_spec z w w).mpr (Or.inr rfl))
+              rcases (uPair_spec z z w).mp
+                hw_in_zz with (h | h)
+              · exact h
+              · exact h
+            exact hwz.trans hyz.symm |>.symm
+        · have up_eq : uPair x y = uPair z w :=
+            upair_ext_of_is_upair_of hup
+          have hy_cases : y = z ∨ y = w := by
+            have h_mem := (axiom_ext (uPair x y)
+              (uPair z w)).mpr up_eq
+            have hy_mem : y ∈ uPair z w :=
+              (h_mem y).mp mem_upair_right
+            exact (uPair_spec z w y).mp hy_mem
+          rcases hy_cases with (hyz | hyw')
+          · rw [hxz, hyz] at up_eq
+            have hwz : w = z := by
+              have h_mem :=
+                (axiom_ext (uPair z z) (uPair z w)).mpr
+                  up_eq
+              have hw_in_zz : w ∈ uPair z z := (h_mem w).mpr
+                ((uPair_spec z w w).mpr (Or.inr rfl))
+              rcases (uPair_spec z z w).mp
+                hw_in_zz with (h | h)
+              · exact h
+              · exact h
+            rw [hyz, hwz]
+          · exact hyw'
+      exact ⟨hxz, hyw⟩
+    · intro ⟨hx, hy⟩
+      rw [hx, hy]
 
 end PUMAC25
+```
+
+# Existence of the Cartesian Product
+%%%
+tag := "c1-s2-q4"
+%%%
+
+
+> Given two sets $`X` and $`Y`, show that we can form the Cartesian product $`X \times Y`, a set of ordered pairs $`(x, y)`, where $`x \in X` and $`y \in Y`.
+> $$`\forall X, Y, \exists (X \times Y), \forall a, \, a \in (X \times Y) \iff \exists x, \exists y, \, (a = (x, y) \land x \in X \land y \in Y)`
+
+
+Now this problem is getting a bit hard. It is obvious that we should try using separation (or else we will be recursively doing unions on pairs and singletons which is just an absolute nightmare for FOL semantics), but on which parent set?
+
+The key to this construction is the sequential application of the *Axiom of Power Set*:
+
+1. We take the union of our two sets to form a base domain of individual coordinates: $`X \cup Y`.
+2. We take the power set of this union: $`\mathcal{P}(X \cup Y)`. This set automatically contains every possible flat collection formed from the elements of $`X` and $`Y`, guaranteeing the inclusion of the singletons $`\{x\}` and pairs $`\{x, y\}`.
+3. Because the Kuratowski definition of an ordered pair requires a nested structural architecture — $`(x, y) = \{\{x\}, \{x, y\}\}` — a flat collection is insufficient. We must take the power set a second time to yield $`\mathcal{P}(\mathcal{P}(X \cup Y))`.
+
+This nested power set serves as our definitive parent set, as it securely encapsulates every possible set of singletons and pairs. We can then cleanly invoke the Axiom Schema of Specification over this domain to isolate the exact elements that satisfy our product predicate:
+
+$$`X \times Y = \{ a \in \mathcal{P}(\mathcal{P}(X \cup Y)) \mid \exists x \in X, \exists y \in Y, a = (x, y) \}`
+
+To formalize this, we first need to formalize our separation predicate in a ergonomic way
+
+```lean
+open ZFC
+
+def is_pair_over_sets (X Y : ZFSet) (a : ZFSet)
+  : Prop := ∀ n, n ∈ a ↔ ∃ x y, n = ⟪x, y⟫
+
+namespace PUMAC26
+
+theorem c1_s2_q4_exists_cart_prod (X Y : ZFSet.{u}) :
+  ∃ S : ZFSet.{u}, ∀ s, s ∈ S
+    ↔ is_pair_over_sets X Y s := by
+  have union_set := X ∪ Y
+  have h_union := bin_union_spec union_set
+  have ⟨power₁, h_power₁⟩ := axiom_powerset union_set
+  have ⟨power₂, h_power₂⟩ := axiom_powerset power₁
+  have ⟨prod_set, h_prod⟩ :=
+    axiom_separation power₂ (is_pair_over_sets X Y)
+  refine ⟨prod_set, λ wp => ?_⟩
+  unfold is_pair_over_sets at *
+  sorry
+
+end PUMAC26
 ```
