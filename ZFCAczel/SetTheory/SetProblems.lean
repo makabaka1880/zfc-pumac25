@@ -31,7 +31,7 @@ tag := "c1-s4-elementary-problems"
 
 Now that we have introduced the basics of ZFC, let's dive into some problems.
 
-# Intersection of Family (1.2.1)
+# Intersection of Family (Q1.2.1)
 %%%
 tag := "c1-s1-q1"
 %%%
@@ -43,8 +43,6 @@ Before doing anything, let's create some ergonomic APIs for expressing nonempty 
 
 ```lean
 namespace ZFC
-
-def nonempty : ZFSet → Prop := λ X => ∃ wx, wx ∈ X
 
 @[simp]
 theorem nonempty_iff_ne_null
@@ -133,7 +131,7 @@ theorem inter_spec (X : ZFSet)
 end ZFC
 ```
 
-# Existence of Certain Constructions (1.2.2)
+# Existence of Certain Constructions (Q1.2.2)
 %%%
 tag := "c1-s2-q2"
 %%%
@@ -147,7 +145,7 @@ tag := "c1-s2-q2-1"
 > Given set $`x`, prove the existence of set $`\{x\}` such that any element of $`\{x\}` is equivalent to $`x`.
 > $$`\forall x \exists \{x\} \, \forall z,\, z \in \{x\} \iff z = x`
 
-At first glance, there might be tempting for us to construct a pair $`\{x, \emptyset\}` using the two instances of sets that we have. However, there is a much cleaner approach. While the notation of a singleton makes it look like a collection containing a single token, ZFC defines a set purely by its membership criteria, not by how many syntactically distinct terms we write down.
+At first glance, there might be tempting for us to construct a pair $`\{x, \emptyset\}` using the two instances of sets that we have, then applying separation to get rid of the $`\emptyset`. However, there is a much cleaner approach. While the notation of a singleton makes it look like a collection containing a single token, ZFC defines a set purely by its membership criteria, not by how many syntactically distinct terms we write down.
 
 Looking back at the axioms, the pair $`\{x, x\}` perfectly suited our requirements. The definition of the pair told that $`\forall n, n \in \{x, x\} \iff n = x \lor n = x` which by the logical law of idempotency simplifies to the definition of a singleton : $`\forall n, n \in \{x, x\} \iff n = x`.
 
@@ -264,6 +262,331 @@ theorem cap_spec (x y : ZFSet.{u}) :
     (c1_s2_q2_3_exists_binary_inter x y)
 
 infix:70 " ∩ " => cap
+
+end PUMAC25
+```
+
+# Existence of Pair (D1.2.1)
+%%%
+tag := "c1-s2-d1"
+%%%
+
+> For two sets $`x` and $`y`, define the _Kuratowski Ordered Pair_ as follows
+> $$`(x, y) := \{\{x\}, \{x, y\}\}`
+
+To state this in first-order logic, we must unpack the set-builder notation into the language of ZFC — formulas whose only predicate symbol is $`\in`. The fully expanded sentence reads:
+
+$$`\forall x, y, \exists p, \forall z, \, z \in p \iff (\forall w, w \in z \iff w = x) \lor (\forall w, w \in z \iff w = x \lor w = y)`
+
+This is hard to read, so we introduce two syntactic abbreviations:
+
+$$`Z = \{x\} \triangleq \forall w, w \in Z \iff w = x \\ Z = \{x, y\} \triangleq \forall w, w \in Z \iff w = x \lor w = y`
+
+With these in hand, the statement recovers its familiar shape:
+
+$$`\forall x, y, \exists (x, y), \forall z, \, z \in (x, y) \iff (z = \{x\} \lor z = \{x, y\})`
+
+*A word on notation.* We write $`:=` for a *definition* — a genuinely new construct in ZFC whose existence must be justified by the axioms. We write $`\triangleq` for *syntactic equivalence* — a macro whose left-hand side is nothing more than a textual substitute for its right-hand side. The two $`\triangleq` lines above do not extend ZFC; they exist purely to make the formula fit on a page. When you see $`Z = \{x\}` written anywhere in the development that follows, the actual sentence being asserted is still $`\forall w, w \in Z \iff w = x`.
+
+The good news is that we have already done the heavy lifting: {ref "c1-s2-q2-1"}[Q1.2.2.1] proved that a witness for $`\{x\}` exists, the pair axiom itself guarantees a witness for $`\{x, y\}`, and pairing those two witnesses together gives us a witness for $`\{\{x\}, \{x, y\}\}`. The macros sugarize right back to existence statements we already know how to satisfy.
+
+The two $`\triangleq` abbreviations translate directly into `Prop`-valued predicates — they name a membership condition without constructing a `ZFSet`.
+
+```lean
+open ZFC
+
+namespace ZFC
+
+def is_singleton_of (Z x : ZFSet.{u}) : Prop :=
+  ∀ w, w ∈ Z ↔ w = x
+
+def is_uPair_of (Z x y : ZFSet.{u}) : Prop :=
+  ∀ w, w ∈ Z ↔ w = x ∨ w = y
+
+end ZFC
+```
+
+We wrap the existence theorems from {ref "c1-s2-q2"}[Q1.2.2] as `noncomputable def`s via `zfc_set_of`, each bundled with its membership spec lemma.
+
+```lean
+namespace ZFC
+
+noncomputable def singleton (x : ZFSet.{u}) : ZFSet.{u} :=
+  zfc_set_of (c1_s2_q2_1_exists_singleton x)
+
+theorem singleton_spec (x : ZFSet.{u}) :
+    ∀ z, z ∈ singleton x ↔ z = x :=
+  zfc_set_of_spec (c1_s2_q2_1_exists_singleton x)
+
+noncomputable def uPair (x y : ZFSet.{u}) : ZFSet.{u} :=
+  zfc_set_of (axiom_pairing x y)
+
+theorem uPair_spec (x y : ZFSet.{u}) :
+    ∀ z, z ∈ uPair x y ↔ z = x ∨ z = y :=
+  zfc_set_of_spec (axiom_pairing x y)
+
+end ZFC
+```
+
+Immediate membership facts: the two elements are indeed members of their own unordered pair.
+
+```lean
+namespace ZFC
+
+theorem mem_upair_left : x ∈ uPair x y :=
+  (uPair_spec x y x).mpr (by simp)
+
+theorem mem_upair_right : y ∈ uPair x y :=
+  (uPair_spec x y y).mpr (by simp)
+
+end ZFC
+```
+
+When does an unordered pair collapse to a singleton? The next two lemmas characterize the situation.
+
+```lean
+namespace ZFC
+
+theorem is_singleton_of_upair_left_iff
+  : is_singleton_of (uPair x y) x ↔ x = y := by
+    unfold is_singleton_of
+    constructor
+    · intro h
+      symm
+      exact (h y).mp mem_upair_right
+    · intro h
+      rw [h]
+      intro w
+      constructor
+      · intro h_w_upair
+        have h' := (uPair_spec y y w).mp h_w_upair
+        exact Or.elim h' id id
+      · intro h_w_eq_y
+        rw [h_w_eq_y]
+        apply (uPair_spec y y y).mpr
+        left; rfl
+
+
+theorem is_singleton_of_upair_right_iff
+  : is_singleton_of (uPair y x) x ↔ x = y := by
+    unfold is_singleton_of
+    constructor
+    · intro h
+      symm
+      exact (h y).mp mem_upair_left
+    · intro h
+      rw [h]
+      intro w
+      constructor
+      · intro h_w_upair
+        have h' := (uPair_spec y y w).mp h_w_upair
+        exact Or.elim h' id id
+      · intro h_w_eq_y
+        rw [h_w_eq_y]
+        apply (uPair_spec y y y).mpr
+        left; rfl
+
+end ZFC
+```
+
+The singleton construction respects extensionality: a set is a singleton of `x` precisely when it equals `{x}`. A direct consequence is that singletons are injective.
+
+```lean
+namespace ZFC
+
+theorem is_singleton_of_ext_iff
+  : is_singleton_of X x ↔ singleton x = X := by
+    constructor
+    · intro h
+      unfold is_singleton_of at h
+      apply (axiom_ext (singleton x) X).mp
+      intro witness
+      constructor
+      · intro hwx
+        have h_w_eq_x := (singleton_spec x witness).mp hwx
+        rw [h]
+        assumption
+      · intro h_w_memof_X
+        apply (singleton_spec x witness).mpr
+        exact (h witness).mp h_w_memof_X
+    · intro h
+      unfold is_singleton_of
+      rw [←h]
+      exact singleton_spec x
+
+theorem singleton_inj :
+  (singleton a = singleton b) ↔ a = b := by
+  constructor
+  · intro h
+    have hext :=
+      (axiom_ext (singleton a) (singleton b)).mpr h
+    have ha := hext a
+    have h_a_memof_sa := (singleton_spec a a).mpr rfl
+    have h_a_memof_sb := ha.mp h_a_memof_sa
+    exact (singleton_spec b a).mp h_a_memof_sb
+  · simp_all
+
+theorem eq_of_is_singleton_of_singleton {x z : ZFSet.{u}}
+    (h : is_singleton_of (singleton x) z) : x = z := by
+    have p := is_singleton_of_ext_iff.mp h
+    symm
+    exact singleton_inj.mp p
+
+end ZFC
+```
+
+Similarly for unordered pairs: if `{x, y}` satisfies the unordered-pair predicate for `z` and `w`, the two unordered pairs are extensionally equal.
+
+```lean
+namespace ZFC
+
+theorem upair_ext_of_is_upair_of {x y z w : ZFSet.{u}}
+    (h : is_uPair_of (uPair x y) z w) :
+    uPair x y = uPair z w := by
+  apply (axiom_ext (uPair x y) (uPair z w)).mp
+  intro v
+  rw [h, uPair_spec z w v]
+
+end ZFC
+```
+
+With these primitives in hand, constructing the Kuratowski ordered pair becomes a straightforward composition: pair up the singleton `{x}` and the unordered pair `{x, y}`.
+
+```lean
+namespace ZFC
+
+theorem exists_kuratowski_pair (x y : ZFSet.{u}) :
+    ∃ p : ZFSet.{u},
+      ∀ z, z ∈ p ↔
+        (is_singleton_of z x ∨ is_uPair_of z x y) := by
+        have ⟨set_sing, h_singleton⟩ :=
+          c1_s2_q2_1_exists_singleton x
+        have ⟨set_upair, h_upair⟩ := axiom_pairing x y
+        have ⟨set_opair, h_opair⟩ :=
+          axiom_pairing set_sing set_upair
+        refine ⟨set_opair, λ wo => ?_⟩
+        constructor
+        · intro h_wo_memof_opair
+          have h_x_eq_dij :=
+            (h_opair wo).mp h_wo_memof_opair
+          refine Or.elim h_x_eq_dij ?_ ?_
+          · intro h_wo_eq_sing
+            left
+            unfold is_singleton_of
+            rw [h_wo_eq_sing]
+            assumption
+          · intro h_wo_eq_upair
+            right
+            unfold is_uPair_of
+            rw [h_wo_eq_upair]
+            assumption
+        · intro h_wo_eq_either
+          apply (h_opair wo).mpr
+          refine Or.elim h_wo_eq_either ?_ ?_
+          · intro h_wo_is_sing
+            left
+            unfold is_singleton_of at h_wo_is_sing
+            apply (axiom_ext wo set_sing).mp
+            simp_all
+          · intro h_wo_is_upair
+            right
+            unfold is_uPair_of at h_wo_is_upair
+            apply (axiom_ext wo set_upair).mp
+            simp_all
+
+noncomputable def orderedPair
+  (a b : ZFSet.{u}) : ZFSet.{u} :=
+  zfc_set_of (exists_kuratowski_pair a b)
+
+notation "⟪" a ", " b "⟫" => orderedPair a b
+
+theorem orderedPair_spec (a b : ZFSet.{u})
+  : ∀ z, z ∈ ⟪a, b⟫ ↔
+    (is_singleton_of z a ∨ is_uPair_of z a b) :=
+  zfc_set_of_spec (exists_kuratowski_pair a b)
+
+end ZFC
+```
+
+# Component-Wise Extensional Equality for Pairs (Q1.2.3)
+%%%
+tag := "c1-s2-q3"
+%%%
+
+> Prove that two pairs are equal if their components are equal.
+> $$`(x, y) = (z, w) \iff x = z \land y = w`
+
+```lean
+open ZFC
+
+namespace PUMAC25
+theorem c1_s2_q3_eq_pairs :
+  ⟪x, y⟫ = ⟪z, w⟫ ↔ x = z ∧ y = w := by
+    constructor
+    · intro h_pair_eq
+      have spec_xy := orderedPair_spec x y
+      have spec_zw := orderedPair_spec z w
+      have mem_ext : ∀ s, s ∈ ⟪x, y⟫ ↔ s ∈ ⟪z, w⟫ := by
+        intro s; rw [h_pair_eq]
+      have sgl_x_in_xy : singleton x ∈ ⟪x, y⟫ := by
+        rw [spec_xy (singleton x)]
+        left; exact singleton_spec x
+      have sgl_z_in_zw : singleton z ∈ ⟪z, w⟫ := by
+        rw [spec_zw (singleton z)]
+        left; exact singleton_spec z
+
+      have sgl_x_in_zw : singleton x ∈ ⟪z, w⟫ :=
+        (mem_ext (singleton x)).mp sgl_x_in_xy
+      constructor
+      · refine Or.elim
+          ((spec_zw (singleton x)).mp sgl_x_in_zw) ?_ ?_
+        · intro hsgl
+          exact eq_of_is_singleton_of_singleton hsgl
+        · intro hup
+          unfold is_uPair_of at hup
+          have hz_mem_up := hup z
+          have hz_eq_x := hz_mem_up.mpr $ Or.inl rfl
+          have hx_eq_z := (singleton_spec x z).mp hz_eq_x
+          simp_all
+      · refine Or.elim
+          ((spec_zw (singleton x)).mp sgl_x_in_zw) ?_ ?_
+        · intro hsgl
+          have hx_eq_z :=
+            eq_of_is_singleton_of_singleton hsgl
+          rw [←hx_eq_z] at spec_zw
+          have ⟨h_pair_in_xw_mp, _⟩ := spec_zw $ uPair x y
+          have h_uPair_memof_xw
+            : uPair x y ∈ ⟪x, w ⟫ := by sorry
+          refine Or.elim
+            (h_pair_in_xw_mp h_uPair_memof_xw) ?_ ?_
+          · intro h_pair_sin_of_x
+            suffices h_x_eq_w : x = w by
+              unfold is_singleton_of at h_pair_sin_of_x
+              have h :=
+                (h_pair_sin_of_x y).mp mem_upair_right
+              simp_all
+            have h_xw_in_xy : uPair x w ∈ ⟪x, y⟫ := by sorry
+            have h_xw_mem_either
+              := (spec_xy $ uPair x w).mp h_xw_in_xy
+            refine Or.elim h_xw_mem_either ?_ ?_
+            · intro h_xw_sin_of_x
+              unfold is_singleton_of at h_xw_sin_of_x
+              symm
+              exact (h_xw_sin_of_x w).mp mem_upair_right
+            · intro h_uPair
+              have x_eq_up := singleton_inj.mp
+                $ is_singleton_of_ext_iff.mp hsgl
+              have h_uzw_eq_uxy := upair_ext_of_is_upair_of h_uPair
+              have h_x_eq_uxy :=
+                is_singleton_of_ext_iff.mp h_pair_sin_of_x
+              have h_uxw_eq_x :=
+                Eq.trans h_x_eq_uxy (Eq.symm h_uzw_eq_uxy)
+              have h_sxOf_xw :=
+                is_singleton_of_ext_iff.mpr h_uxw_eq_x
+              exact is_singleton_of_upair_left_iff.mp h_sxOf_xw
+          · sorry
+        · sorry
+    · sorry
 
 end PUMAC25
 ```

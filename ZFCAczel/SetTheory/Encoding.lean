@@ -28,10 +28,10 @@ The most direct way to represent sets in a type-theoretic setting is to interpre
 ```lean
 namespace NaiveSetTheory
 ---
-def Set (α : Type u) : Type u := α → Prop
-def SMem (x : α) (S : Set α) := S x
+def NSet (α : Type u) : Type u := α → Prop
+def NMem (x : α) (S : NSet α) := S x
 
-infix:50 " ∈ " => SMem
+infix:50 " ∈ " => NMem
 notation:50 x:50 " ∉ " S:50 => ¬ (x ∈ S)
 ---
 end NaiveSetTheory
@@ -44,16 +44,54 @@ _Example 1._ The set of even natural numbers can be encoded as a predicate:
 ```lean
 open NaiveSetTheory
 ---
-def even_numbers : Set Nat := λ n => n % 2 = 0
+def even_numbers : NSet Nat := λ n => n % 2 = 0
 ```
 
 Then $`2 \in \texttt{even\_numbers}` computes to the proposition $`2 % 2 = 0`, which is true, while $`3 \in \texttt{even\_numbers}` computes to $`3 % 2 = 0`, which is false. The membership relation $`\in` is the binary relation whose partial application to `even_numbers` gives the unary predicate $`\lambda n.\, n \% 2 = 0`.
 
+```lean
+open NaiveSetTheory
+
+example : 2 ∈ even_numbers := by
+  unfold even_numbers NMem
+  simp_all
+
+example : 3 ∉ even_numbers := by
+  unfold even_numbers NMem
+  simp_all
+```
+
 This interpretation works smoothly _within Lean_ thanks to the stratification of universes. The type-theoretic hierarchy prevents the formation of self-referential or ill-founded sets that caused trouble in naive set theory. For instance, the following construction is rejected by the type checker:
 
 ```lean+error
-def russell {α : Type u} : Set (Set α)
-  := λ (s : Set α) ↦ s ∉ s
+inductive NSetPredicative α where
+| Nested (f : NSetPredicative α → Prop) : NSetPredicative α
+| Base (s : NSet α) : NSetPredicative α
+
+open NaiveSetTheory
+
+-- If Lean accepted NSetPredicative,
+-- we could define a membership-like
+-- predicate for the Nested case:
+def NPreMem (A B : NSetPredicative α) : Prop :=
+  match B with
+  | .Nested f => f A
+  | .Base _ => False
+
+def russell (α : Type u) : NSetPredicative α :=
+  .Nested (λ S => ¬ NPreMem S S)
+
+theorem russell_paradox (α : Type u)
+  [Nonempty (NSetPredicative α)] : False := by
+  let R := russell α
+  have h : NPreMem R R ↔ ¬ NPreMem R R := by
+    unfold NPreMem russell
+    simp
+  have hmem : NPreMem R R := by
+    apply Classical.byContradiction
+    intro hnmem
+    exact hnmem (h.mpr hnmem)
+  exact hmem (h.mp hmem)
 ```
 
 While this stratification makes the predicate view consistent within the proof assistant, it is not sufficiently powerful to faithfully model the full cumulative hierarchy of ZF set theory. In particular, one cannot easily construct sets whose elements have different "orders" or ranks. A classic example is the set

@@ -1,1 +1,5 @@
 /* Put your custom styles here */
+
+span.comment {
+    color: #888
+}

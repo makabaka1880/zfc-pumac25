@@ -114,7 +114,18 @@ theorem zmem_well_defined (p q : PSet) :
 end ZFC
 ```
 
-From here on, $`\in` denotes membership on `ZFSet`. Extensionality for `ZFSet` is now a theorem — it follows from `zfc_ext_pset` by quotient induction:
+From here on, $`\in` denotes membership on `ZFSet`. Before we get to the axioms, we define one basic derived notion that will be used throughout:
+
+```lean
+namespace ZFC
+
+/-- A set is nonempty if it has at least one element. -/
+def nonempty (X : ZFSet.{u}) : Prop := ∃ wx, wx ∈ X
+
+end ZFC
+```
+
+Extensionality for `ZFSet` is now a theorem — it follows from `zfc_ext_pset` by quotient induction:
 
 ```lean
 namespace ZFC
@@ -240,7 +251,7 @@ axiom axiom_pairing (X Y : ZFSet.{u}) :
 end ZFC
 ```
 
-Pairing lets us build a set with exactly two elements. But what if we want to gather the elements of those elements? Given a set of sets — say, a family $`\{A, B, C\}`$ — we often need to talk about the collection of all elements that belong to *any* member of the family. For that we need the union axiom.
+Pairing lets us build a set with exactly two elements. But what if we want to gather the elements of those elements? Given a set of sets — say, a family $`\{\{a, b\}, \{c, d\}, \{e, f\}\}` — we often need to talk about the collection of all elements that belong to *any* member of the family — $`\{a, b, c, d, e, f\}`. For that we need the union axiom.
 
 # Existence of the Union
 
@@ -254,15 +265,15 @@ axiom axiom_union (F : ZFSet.{u}) :
     ∃ C : ZFSet.{u}, ∀ (x : ZFSet.{u}), x ∈ C
       ↔ (∃ (S : ZFSet.{u}), x ∈ S ∧ S ∈ F)
 
-noncomputable def union_ (F : ZFSet.{u}) :
+noncomputable def fam_union (F : ZFSet.{u}) :
     ZFSet.{u} := zfc_set_of (axiom_union F)
 
-theorem union_spec (F : ZFSet.{u}) :
-    ∀ x, x ∈ union_ F ↔
+theorem fam_union_spec (F : ZFSet.{u}) :
+    ∀ x, x ∈ fam_union F ↔
       ∃ (S : ZFSet.{u}), x ∈ S ∧ S ∈ F :=
   zfc_set_of_spec (axiom_union F)
 
-prefix:70 "⋃" => union_
+prefix:70 "⋃" => fam_union
 
 end ZFC
 ```
@@ -283,13 +294,19 @@ We first define the subset relation:
 namespace ZFC
 
 def ZFSubseteq (A B : ZFSet.{u}) : Prop :=
-    ∀ (x : ZFSet.{u}), ZFSet.Mem x A → ZFSet.Mem x B
+  ∀ (x : ZFSet.{u}), ZFSet.Mem x A → ZFSet.Mem x B
 
 infix:50 " ⊆ " => ZFSubseteq
 
 axiom axiom_powerset (S : ZFSet.{u}) :
-    ∃ P : ZFSet.{u}, ∀ (X : ZFSet.{u}), X ∈ P ↔ X ⊆ S
+  ∃ P : ZFSet.{u}, ∀ (X : ZFSet.{u}), X ∈ P ↔ X ⊆ S
 
+noncomputable def powerset (S : ZFSet.{u}) :
+  ZFSet.{u} := zfc_set_of $ axiom_powerset S
+
+theorem powerset_spec (S : ZFSet.{u}) :
+  ∀ X, X ∈ powerset S ↔ X ⊆ S :=
+    zfc_set_of_spec $ axiom_powerset S
 end ZFC
 ```
 
@@ -308,6 +325,15 @@ namespace ZFC
 axiom axiom_separation
   (U : ZFSet.{u}) (φ : ZFSet.{u} → Prop) :
     ∃ A : ZFSet.{u}, ∀ (x : ZFSet.{u}), x ∈ A ↔ x ∈ U ∧ φ x
+
+noncomputable def set_from_pred
+  (X : ZFSet.{u}) (φ : ZFSet → Prop)
+    : ZFSet.{u} := zfc_set_of $ axiom_separation X φ
+
+theorem set_from_pre_spec
+  (X : ZFSet.{u}) (φ : ZFSet → Prop)
+    : ∀ x, x ∈ set_from_pred X φ ↔ x ∈ X ∧ φ x :=
+      zfc_set_of_spec $ axiom_separation X φ
 
 end ZFC
 ```
@@ -338,6 +364,13 @@ def is_inductive (N : ZFSet) : Prop :=
   null ∈ N ∧
     ∀ a, a ∈ N → ∀ s, is_succ_of s a → s ∈ N
 
+noncomputable def succ (X : ZFSet) : ZFSet
+  := zfc_set_of $ exists_succ_for_all X
+
+theorem succ_spec (X : ZFSet)
+  : is_succ_of (succ X) X :=
+    zfc_set_of_spec $ exists_succ_for_all X
+
 end ZFC
 ```
 
@@ -350,6 +383,10 @@ namespace ZFC
 axiom axiom_infinity
   : ∃ S : ZFSet, is_inductive S
 
+-- Note that here we cannot use
+-- our nice zfc_set_of macros
+-- since axiom_infinity is not
+-- a parametrized theorem.
 noncomputable def inf : ZFSet :=
   Classical.choose axiom_infinity
 
@@ -392,6 +429,17 @@ axiom axiom_replacement (X : ZFSet.{u})
   (h_func : ∀ x y z, φ x y → φ x z → y = z) :
     ∃ Y : ZFSet.{u}, ∀ y, y ∈ Y ↔ ∃ x ∈ X, φ x y
 
+noncomputable def replacement_set
+  (X : ZFSet) (φ : ZFSet → ZFSet → Prop)
+    (h_func : ∀ x y z, φ x y → φ x z → y = z) :=
+      zfc_set_of $ axiom_replacement X φ h_func
+
+theorem replacement_set_spec
+  (X : ZFSet) (φ : ZFSet → ZFSet → Prop)
+    (h_func : ∀ x y z, φ x y → φ x z → y = z)
+      : ∀ y, y ∈ replacement_set X φ h_func ↔ ∃ x ∈ X, φ x y
+        := zfc_set_of_spec $ axiom_replacement X φ h_func
+
 end ZFC
 ```
 
@@ -407,8 +455,9 @@ This axiom prevents a infinite descending chain of membership.
 ```lean
 namespace ZFC
 
-axiom axiom_foundation (X : ZFSet.{u})
-  : ∃ y ∈ X, ¬(∃ x, x ∈ X ∧ x ∈ y)
+axiom axiom_foundation
+  (X : ZFSet.{u}) (h_nonempty_X : nonempty X)
+    : ∃ y ∈ X, ¬(∃ x, x ∈ X ∧ x ∈ y)
 
 end ZFC
 ```
