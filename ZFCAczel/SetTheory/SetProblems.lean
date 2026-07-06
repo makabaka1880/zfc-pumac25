@@ -238,11 +238,19 @@ theorem c1_s2_q2_3_exists_binary_inter
       ∀ z : ZFSet.{u},
         z ∈ C ↔ z ∈ x ∧ z ∈ y := by
     let ⟨pair_set, h_pair⟩ := axiom_pairing x y
-    let ⟨inter_set, h_inter⟩ := axiom_separation pair_set (λ z => z ∈ x ∧ z ∈ y)
+    let ⟨union_set, h_union⟩ := axiom_union pair_set
+    let ⟨inter_set, h_inter⟩ :=
+      axiom_separation union_set (λ z => z ∈ x ∧ z ∈ y)
     refine ⟨inter_set, λ wC => ?_⟩
     constructor
-    · sorry
-    · sorry
+    · intro h_wC_memof_inter
+      exact ((h_inter wC).mp h_wC_memof_inter).right
+    · intro h_wC_memof_both
+      suffices h : wC ∈ union_set by
+        exact (h_inter wC).mpr ⟨h, h_wC_memof_both⟩
+      have h_x_in_pair := (h_pair x).mpr $ Or.inl rfl
+      exact (h_union wC).mpr
+        $ Exists.intro x ⟨h_wC_memof_both.left, h_x_in_pair⟩
 
 noncomputable def cap (x y : ZFSet.{u}) :
     ZFSet.{u} :=
