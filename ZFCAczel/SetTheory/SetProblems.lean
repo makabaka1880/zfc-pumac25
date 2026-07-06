@@ -634,23 +634,42 @@ To formalize this, we first need to formalize our separation predicate in a ergo
 ```lean
 open ZFC
 
-def is_pair_over_sets (X Y : ZFSet) (a : ZFSet)
-  : Prop := ∀ n, n ∈ a ↔ ∃ x y, n = ⟪x, y⟫
+def is_pair_over_sets (X Y : ZFSet) (a : ZFSet) : Prop :=
+    ∃ x y, x ∈ X ∧ y ∈ Y ∧ a = ⟪x, y⟫
 
 namespace PUMAC26
 
 theorem c1_s2_q4_exists_cart_prod (X Y : ZFSet.{u}) :
   ∃ S : ZFSet.{u}, ∀ s, s ∈ S
     ↔ is_pair_over_sets X Y s := by
-  have union_set := X ∪ Y
-  have h_union := bin_union_spec union_set
-  have ⟨power₁, h_power₁⟩ := axiom_powerset union_set
+  have h_union := bin_union_spec X Y
+  have ⟨power₁, h_power₁⟩ := axiom_powerset (X ∪ Y)
   have ⟨power₂, h_power₂⟩ := axiom_powerset power₁
   have ⟨prod_set, h_prod⟩ :=
     axiom_separation power₂ (is_pair_over_sets X Y)
   refine ⟨prod_set, λ wp => ?_⟩
-  unfold is_pair_over_sets at *
-  sorry
-
+  constructor
+  · intro h_wp_memof_prod
+    exact ((h_prod wp).mp h_wp_memof_prod).right
+  · intro h_wp_is_pair
+    apply (h_prod wp).mpr
+    refine ⟨?_, h_wp_is_pair⟩
+    rw [h_power₂]
+    intro n hn
+    rw [h_power₁]
+    intro a ha
+    have h := h_union a
+    apply h.mpr
+    unfold is_pair_over_sets at h_wp_is_pair
+    rcases h_wp_is_pair with ⟨x, y, hx, hy, rfl⟩
+    have h_n_cases := (orderedPair_spec x y n).mp hn
+    rcases h_n_cases with ( h_sing | h_upair )
+    · unfold is_singleton_of at h_sing
+      rw [(h_sing a).mp ha]
+      left; assumption
+    · unfold is_uPair_of at h_upair
+      rcases (h_upair a).mp ha with ( h_ax | h_ay )
+      · rw [h_ax]; left; assumption
+      · rw [h_ay]; right; assumption
 end PUMAC26
 ```
