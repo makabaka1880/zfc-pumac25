@@ -4,12 +4,12 @@ defaultTargets = ["ZFCAczel"]
 [[require]]
 name = "verso"
 git = "https://github.com/leanprover/verso"
-rev = "v4.31.0"
+rev = "main"
 
-# [[require]]
-# name = "batteries"
-# scope = "leanprover-community"
-# rev = "main"
+[[require]]
+name = "batteries"
+scope = "leanprover-community"
+rev = "main"
 
 [[lean_lib]]
 name = "ZFCAczel"

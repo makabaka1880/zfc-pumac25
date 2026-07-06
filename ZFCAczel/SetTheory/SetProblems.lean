@@ -107,3 +107,29 @@ theorem c1_s2_q1_inter_of_family
 
 end PUMAC25
 ```
+
+# Existence of Singleton
+
+> Given set $`x`, prove the existence of set $`\{x\}` such that any element of $`\{x\}` is equivalent to $`x`.
+> $$`\forall x \exists \{x\} \, \forall z,\, z \in \{x\} \iff z = x`
+
+At first glance, there might be tempting for us to construct a pair $`\{x, \emptyset\}` using the two instances of sets that we have. However, there is a much cleaner approach. While the notation of a singleton makes it look like a collection containing a single token, ZFC defines a set purely by its membership criteria, not by how many syntactically distinct terms we write down.
+
+Looking back at the axioms, the pair $`\{x, x\}` perfectly suited our requirements. The definition of the pair told that $`\forall n, n \in \{x, x\} \iff n = x \lor n = x` which by the logical law of idempotency simplifies to the definition of a singleton : $`\forall n, n \in \{x, x\} \iff n = x`.
+
+```lean
+theorem c1_s2_q1_1_exists_singleton
+  (x : ZFSet) : ∃ X : ZFSet, ∀ n, n ∈ X ↔ n = x := by
+    let ⟨singleton_set, h_singleton⟩ := axiom_pairing x x
+    refine ⟨singleton_set, λ ws => ?_⟩
+    constructor
+    · intro h_ws_memof_singleton
+      have h_ws_memof_either := (
+        h_singleton ws).mp h_ws_memof_singleton
+      exact Or.elim h_ws_memof_either
+        id id
+    · intro h_ws_eq_x
+      exact (h_singleton ws).mpr $ Or.inl h_ws_eq_x
+```
+
+We will exploit this characteristic of ZFC membership — focusing on predicates rather than literal element counts — frequently when constructing sets.
