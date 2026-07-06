@@ -39,7 +39,7 @@ end NaiveSetTheory
 
 Here, a "set" over a type $`\alpha` is simply a function from $`\alpha` to propositions. The membership relation $`\in` is defined by applying the predicate $`S` to the element $`x`: we write $`x \in S` to mean $`S(x)` holds. This mirrors the mathematical intuition that a set is determined by which elements belong to it.
 
-*Example 1.* The set of even natural numbers can be encoded as a predicate:
+_Example 1._ The set of even natural numbers can be encoded as a predicate:
 
 ```lean
 open NaiveSetTheory
@@ -49,7 +49,7 @@ def even_numbers : Set Nat := λ n => n % 2 = 0
 
 Then $`2 \in \texttt{even\_numbers}` computes to the proposition $`2 % 2 = 0`, which is true, while $`3 \in \texttt{even\_numbers}` computes to $`3 % 2 = 0`, which is false. The membership relation $`\in` is the binary relation whose partial application to `even_numbers` gives the unary predicate $`\lambda n.\, n \% 2 = 0`.
 
-This interpretation works smoothly *within Lean* thanks to the stratification of universes. The type-theoretic hierarchy prevents the formation of self-referential or ill-founded sets that caused trouble in naive set theory. For instance, the following construction is rejected by the type checker:
+This interpretation works smoothly _within Lean_ thanks to the stratification of universes. The type-theoretic hierarchy prevents the formation of self-referential or ill-founded sets that caused trouble in naive set theory. For instance, the following construction is rejected by the type checker:
 
 ```lean+error
 def russell {α : Type u} : Set (Set α)
@@ -62,7 +62,7 @@ $$`\{0, \{0\}\}`
 
 where the second element is itself a set containing the first. Representing such mixed-rank structures cleanly using only predicates over a fixed universe quickly becomes awkward or impossible without additional machinery.
 
-*Example 2.* Suppose we try to encode $`\{0, \{0\}\}` in the predicate style. The number $`0` is of type $`\mathbb{N}`, so we need $`0 \in S` to be true. But $`\{0\}` is itself a set — a predicate over $`\mathbb{N}` — so it has type $`\mathbb{N} \to \mathsf{Prop}`, while $`0` has type $`\mathbb{N}`. A predicate $`S` would need to accept elements of two different types simultaneously: the natural number $`0` and the predicate $`\{0\}`. Lean's type system prevents this; there is no universe in which both are inhabitants of a single carrier type. This is fundamentally the same limitation that prevents us from forming $`\{0, \{0\}\}` in the stratified predicate encoding.
+_Example 2._ Suppose we try to encode $`\{0, \{0\}\}` in the predicate style. The number $`0` is of type $`\mathbb{N}`, so we need $`0 \in S` to be true. But $`\{0\}` is itself a set — a predicate over $`\mathbb{N}` — so it has type $`\mathbb{N} \to \mathsf{Prop}`, while $`0` has type $`\mathbb{N}`. A predicate $`S` would need to accept elements of two different types simultaneously: the natural number $`0` and the predicate $`\{0\}`. Lean's type system prevents this; there is no universe in which both are inhabitants of a single carrier type. This is fundamentally the same limitation that prevents us from forming $`\{0, \{0\}\}` in the stratified predicate encoding.
 
 # Aczel's Tree Encoding (PSet)
 
@@ -77,7 +77,7 @@ The constructor takes two arguments:
 * `α` is an indexing type describing the elements of the set.
 * `f : α → PSet` maps each index to the corresponding element.
 
-Before we can say what it means for one set to belong to another, we must first define what it means for two sets to be equal. In ZF, sets are equal precisely when they have the same elements — this is the principle of *extensionality*. We postulate extensional equality as an equivalence relation on `PSet`:
+Before we can say what it means for one set to belong to another, we must first define what it means for two sets to be equal. In ZF, sets are equal precisely when they have the same elements — this is the principle of _extensionality_. We postulate extensional equality as an equivalence relation on `PSet`:
 
 ```lean
 axiom Equiv : PSet → PSet → Prop
@@ -121,7 +121,7 @@ def singleton (x : PSet) : PSet :=
 
 With just these two constructors we can already build a surprising variety of sets. For instance, `singleton (singleton empty)` represents the set $`\{\{\emptyset\}\}`. Let us construct it step by step:
 
-*Example 3.* We build $`\{\emptyset, \{\emptyset\}\}` in the `PSet` encoding:
+_Example 3._ We build $`\{\emptyset, \{\emptyset\}\}` in the `PSet` encoding:
 
 ```lean
 -- empty : PSet represents ∅
@@ -137,11 +137,11 @@ The indexing type is `Bool`, which has two inhabitants. The element at index `fa
 
 This representation is remarkably faithful to the cumulative nature of set theory: every set is built from previously existing sets, and there is simply no way to construct a pathological self-referential object. The inductive definition guarantees well-foundedness automatically.
 
-## Extensional Equality and Future Developments
+# Why Equality is Hard — and Why It Matters
 
-Two sets are *extensionally equal* if they have exactly the same members. In the `PSet` encoding, extensional equality can be defined recursively — but the definition is complex and the resulting equality is difficult to work with in practice. This is a well-known difficulty with W-types (well-founded trees) in dependent type theory.
+There is a catch. Two sets are _extensionally equal_ if they have exactly the same members. In ZF, extensionality is the only thing that matters: a set _is_ its members. The `PSet` encoding respects this in spirit, but not in letter.
 
-*Example 4.* Consider two different representations of the singleton set $`\{\emptyset\}`:
+_Example 4._ Consider two different representations of the same singleton $`\{\emptyset\}`:
 
 ```lean
 -- Version 1: using Unit as the index
@@ -152,8 +152,8 @@ inductive OneElem : Type where | it : OneElem
 def sing2 : PSet := .mk OneElem (λ _ => empty)
 ```
 
-These two values are structurally different (`Unit` vs `OneElem` as the indexing type), yet they represent the same set — each contains exactly one element, and in both cases that element is `empty`. Proving `sing1` and `sing2` equal requires constructing a bisimulation between the tree structures, which is nontrivial even for this simple case.
+These two values are structurally different — one uses `Unit`, the other uses a bespoke `OneElem` type. Yet they represent the same set: each contains exactly one element, and in both cases that element is `empty`. To prove them equal, we would need to construct a *bisimulation* — a mutual simulation relating the two tree structures — which is nontrivial even for this toy example and rapidly becomes unwieldy for larger sets. This is a well-known difficulty with W-types in dependent type theory: equality on trees is equational reasoning at its most tedious.
 
-In the chapters that follow, we will therefore treat membership and equality as *opaque relations* defined axiomatically, rather than deriving them from the tree structure. The axioms of ZF will be stated directly in terms of these relations, and every set will be specified by a predicate describing which elements it contains. This style of presentation mirrors the standard mathematical practice in set theory and frees us from the technical burdens of the `PSet` encoding.
+So we face a choice. We _could_ define extensional equality recursively and work directly with `PSet` values, proving bisimulations by hand whenever two representations ought to be identified. Or we could take the standard mathematical shortcut: quotient `PSet` by the extensional equivalence relation, so that `sing1` and `sing2` become definitionally the same object — a `ZFSet` — and reason about sets entirely through the membership relation, never through their underlying tree structure.
 
-With this foundation in place, we are ready to develop the full axiomatic theory of ZF.
+We choose the second path. In the next chapter, we will define $`\texttt{ZFSet}` as the quotient of $`\texttt{PSet}` by $`\simeq`, lift membership to the quotient, and then state the axioms of ZF directly in terms of the lifted $`\in`. Once the quotient is in place, the tree encoding becomes an implementation detail — we will never look inside a `ZFSet` again. Every set will be specified by a predicate describing which elements belong to it, and every proof will appeal to the axioms rather than to the inductive structure. This is exactly how mathematicians work with sets: they ask what is inside, not how the set was built.

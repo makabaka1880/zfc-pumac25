@@ -145,19 +145,28 @@ Bibliography entries are defined as Lean constants in `ZFCAczel/Papers.lean`. Ve
 
 All definitions, axioms, theorems, and notation for the ZFC formalization live inside `namespace ZFC`. Each code block in the prose chapters opens `namespace ZFC` (or `PreZFC` for PSet-level work), defines what it needs, then closes it. This keeps the ZFC material separate from Verso's `Manual` namespace and from the naive set theory examples in `Encoding.lean`.
 
-### ZFSet is opaque — all set existence returns `∃` in `Prop`
+### ZFSet is opaque — all constructions go through the axioms, via `∃` propositions
 
-`ZFSet` is defined as `Quotient (Setoid PSet)`. Two consequences:
+`ZFSet` is defined as `Quotient (Setoid PSet)`, which makes it **opaque**: we cannot pattern-match on it, inspect its internal tree structure, or count its elements. Constructing a `ZFSet` directly via the `PSet.mk` constructor is nearly impossible for non-trivial operations, because it requires manipulating the indexing universe types and projection maps.
 
-1. **Prop elimination** blocks extracting witnesses: `axiom_pairing a b` returns `∃ C : ZFSet, ...` in `Prop`, and Lean forbids eliminating `Prop` into `Type`. You cannot write a bare `def mk_pair : ZFSet := ...` that extracts the witness.
+The **primary** way to produce a `ZFSet` is therefore to **prove an existential proposition** using the axioms (pairing, union, powerset, separation, etc.):
 
-2. **Quotient erasure** makes `ZFSet` opaque — no pattern matching, no structural inspection. The only information a `ZFSet` carries is what `∈` says about it.
+```lean
+theorem exists_intersection (A B : ZFSet) : ∃ C, ∀ x, x ∈ C ↔ x ∈ A ∧ x ∈ B := ...
+```
 
-Set-forming operations therefore return `∃ S : ZFSet, φ(S)` in `Prop` (never `Σ' S, φ(S)` in `Type`). This is fine because the book only proves propositions about sets, never performs term-level computation on them.
+An `∃` sentence stays in `Prop`, composes directly with `have`, `obtain`, `rcases` in proofs, and avoids the semantic awkwardness of a term-level function whose sole purpose is propositional. This is the default style for proving theorems throughout the book.
 
-### Global constants via `Classical.choose`
+### Convenience operators via `Classical.choose`
 
-For unique global constants (`∅`, `∞`), the project uses `Classical.choose` on the existence axiom to extract a `ZFSet` term into `Type`, together with a `notation` declaration. This is an explicit exception to the Prop-only rule, justified by the need for a permanent named referent throughout the development.
+For **operators that are used repeatedly** as building blocks (binary union, Cartesian product, etc.), a secondary pattern is available: `noncomputable def` + `Classical.choose` to extract a `ZFSet` term in `Type`:
+
+```lean
+noncomputable def binary_union (A B : ZFSet) : ZFSet :=
+  Classical.choose (exists_union A B)
+```
+
+This yields a noncomputable `ZFSet` bundled with a separate proof lemma (`Classical.choose_spec`) that certifies its properties. The same pattern is used for global constants (`∅`, `∞`). But these are convenience wrappers — the **proof** of any theorem about them still ultimately rests on the existential axioms, not on the `def` itself. The rule of thumb: **prove theorems as `∃` propositions; define `noncomputable def`s only for operators that will be called many times**.
 
 ### Bounded quantifier macros
 

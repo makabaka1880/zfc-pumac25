@@ -142,6 +142,42 @@ theorem axiom_ext (A B : ZFSet.{u}) :
 end ZFC
 ```
 
+Before we proceed to the existence axioms, we pause to address a design constraint that shapes every construction in the chapters to come. The axioms we are about to state are all $`\exists` quantifications in `Prop`. One might expect to extract the witness and define a `ZFSet`-valued function:
+
+```lean+error
+def mk_pair (a b : ZFSet) : ZFSet := by
+  -- error: cannot eliminate from Prop to Type
+  have ⟨pair_witness, proof⟩ := axiom_pairing a b
+  exact pair_witness
+```
+
+This fails, and the failure reveals _two independent obstacles_.
+
+*First obstacle: Prop elimination.* Lean separates `Prop` from `Type` into distinct universe sorts, forbidding elimination from `Prop` into `Type`. In standard type theory (Martin-Löf, HoTT) there is no such bifurcation; $`\exists` and $`\Sigma` are the same thing. But Lean's kernel ramifies its universe hierarchy, diverting `Prop` into a computationally irrelevant sort. In exchange, Lean gains _proof irrelevance_: any two proofs of the same proposition are definitionally equal, and the compiler erases them at runtime. The cost is that a $`\exists` in `Prop` is a ghost — it tells you something exists, but you cannot get your hands on the thing itself.
+
+*Second obstacle: quotient erasure.* Even if we bypassed `Prop` by writing the axiom as a $`\Sigma`-type in `Type`, there is a second problem. Recall from {ref "c1-s2-encoding"}[the Encoding chapter] that `ZFSet` is a _quotient_ of `PSet`. `Quotient` erases the distinction between extensionally equivalent `PSet`s — a `ZFSet` is opaque. We cannot pattern-match on it or inspect its internals. The _only_ information a `ZFSet` carries is what $`\in` tells us.
+
+The *primary* way we produce a `ZFSet` is therefore to prove an existential proposition — exactly like the axioms themselves. $`\exists` composes perfectly within `Prop` via `have`, `obtain`, `rcases`, and friends. The witness stays inside the proof and is erased at runtime.
+
+For *operators used repeatedly* (binary union, Cartesian product, global constants like $`\emptyset`), a secondary pattern is available: `Classical.choose` bridges the Prop/Type divide, yielding a noncomputable `ZFSet` term bundled with a proof lemma. The helper `zfc_set_of` packages this into a reusable two-liner:
+
+```lean
+namespace ZFC
+
+noncomputable def zfc_set_of {φ : ZFSet → Prop}
+  (h : ∃ S : ZFSet, ∀ x, x ∈ S ↔ φ x) :
+    ZFSet := Classical.choose h
+
+theorem zfc_set_of_spec {φ : ZFSet → Prop}
+  (h : ∃ S : ZFSet, ∀ x, x ∈ S ↔ φ x) :
+    ∀ x, x ∈ zfc_set_of h ↔ φ x :=
+  Classical.choose_spec h
+
+end ZFC
+```
+
+The rule of thumb: prove theorems as $`\exists` propositions; define `noncomputable def`s only for operators called many times. We will see both patterns throughout the book, and we now put the first to use.
+
 # Existence of the Null Set
 
 > There exists a set with no elements that is unique up to extensional equality.
@@ -151,38 +187,36 @@ end ZFC
 namespace ZFC
 
 axiom axiom_exists_null
-  : ∃ N : ZFSet.{u}, ∀ x : ZFSet.{u}, (x ∉ N)
+  : ∃ N : ZFSet.{u}, ∀ x : ZFSet.{u}, x ∈ N ↔ False
 
-noncomputable def instance_null
-  : ZFSet.{u} := axiom_exists_null.choose
-
-notation "∅" => instance_null
-
-theorem null_spec
-  : ∀ (x : ZFSet.{u}), x ∉ instance_null :=
-  λ x => Classical.choose_spec axiom_exists_null x
+noncomputable def null : ZFSet.{u} :=
+  zfc_set_of axiom_exists_null
+theorem null_spec : ∀ x : ZFSet.{u}, x ∈ null ↔ False :=
+  zfc_set_of_spec axiom_exists_null
+notation "∅" => null
 
 theorem null_unique
-  : ∀ (x : ZFSet), ¬ (∃ k, k ∈ x) ↔ x = instance_null := by
+  : ∀ (x : ZFSet), ¬ (∃ k, k ∈ x) ↔ x = null := by
   intro x
   constructor
   · intro h
-    unfold instance_null
-    apply (axiom_ext x instance_null).mp
+    apply (axiom_ext x null).mp
     intro y
+    have hnull := null_spec y
     constructor
     · intro h_y_memof_x
       exfalso
       exact h (Exists.intro y h_y_memof_x)
     · intro h_y_memof_null
       exfalso
-      have nh_y_memof_null := null_spec y
-      exact nh_y_memof_null h_y_memof_null
+      have : y ∈ null := h_y_memof_null
+      rcases hnull.mp this with ⟨⟩
   · intro h_x_eq_null
     rw [h_x_eq_null]
     intro h_exists
     obtain ⟨k, hk⟩ := h_exists
-    exact (null_spec k) hk
+    have hnull := null_spec k
+    rcases hnull.mp hk with ⟨⟩
 
 end ZFC
 ```
@@ -219,6 +253,16 @@ namespace ZFC
 axiom axiom_union (F : ZFSet.{u}) :
     ∃ C : ZFSet.{u}, ∀ (x : ZFSet.{u}), x ∈ C
       ↔ (∃ (S : ZFSet.{u}), x ∈ S ∧ S ∈ F)
+
+noncomputable def union_ (F : ZFSet.{u}) :
+    ZFSet.{u} := zfc_set_of (axiom_union F)
+
+theorem union_spec (F : ZFSet.{u}) :
+    ∀ x, x ∈ union_ F ↔
+      ∃ (S : ZFSet.{u}), x ∈ S ∧ S ∈ F :=
+  zfc_set_of_spec (axiom_union F)
+
+prefix:70 "⋃" => union_
 
 end ZFC
 ```
@@ -291,7 +335,7 @@ theorem exists_succ_for_all (A : ZFSet)
   : ∃ S : ZFSet, is_succ_of S A := by sorry
 
 def is_inductive (N : ZFSet) : Prop :=
-  instance_null ∈ N ∧
+  null ∈ N ∧
     ∀ a, a ∈ N → ∀ s, is_succ_of s a → s ∈ N
 
 end ZFC
@@ -306,52 +350,19 @@ namespace ZFC
 axiom axiom_infinity
   : ∃ S : ZFSet, is_inductive S
 
-noncomputable def instance_infinity : ZFSet :=
+noncomputable def inf : ZFSet :=
   Classical.choose axiom_infinity
 
-theorem zfc_infinity_spec
-  : is_inductive instance_infinity :=
+theorem inf_spec
+  : is_inductive inf :=
   Classical.choose_spec axiom_infinity
 
-notation "∞" => instance_infinity
+notation "∞" => inf
 
 end ZFC
 ```
 
-## A Side Note
 Notice that `exists_succ_for_all` is stated as a _theorem_, not an axiom. This is deliberate: the successor $`s(A) = A \cup \{A\}` is definable from pairing and union — we first form the singleton $`\{A\}` via `axiom_pairing A A`, then take $`\bigcup \{A, \{A\}\}` via `axiom_union`. No new axiom is required.
-
-This illustrates a deeper design constraint: we can only obtain witnesses of sets via the axioms, and those axioms are stated as $`\exists` quantifications in `Prop`. One might be tempted to extract the witness and return a bare `ZFSet`:
-
-```lean+error
-def mk_pair (a b : ZFSet) : ZFSet := by
-  -- error: cannot eliminate from Prop to Type
-  have ⟨pair_witness, proof_of_pair⟩ := axiom_pairing a b
-  exact pair_witness
-```
-
-This fails, and the failure reveals *two independent obstacles* that shape the style of every construction in this book.
-
-*First obstacle: Prop elimination.* Lean separates `Prop` from `Type` — they inhabit different universe sorts, and elimination from `Prop` into a computational `Type` is forbidden. In standard type theory (Martin-Löf, HoTT) there is no such bifurcation; $`\exists` and $`\Sigma` are the same thing, and the witness can be used directly in computations. But Lean's kernel ramifies its universe hierarchy, diverting `Prop` into a separate, computationally irrelevant sort. In exchange, Lean gains *proof irrelevance*: any two proofs of the same proposition are definitionally equal, which allows the compiler to erase them at runtime. The cost is that a $`\exists` in `Prop` is a ghost — it tells you something exists, but you cannot get your hands on the thing itself.
-
-*Why `Classical.choose` is irrelevant here.* You can force this ghost into existence by calling `Classical.choose` on the existential axiom, extracting a bare `ZFSet` into `Type`. We do, in fact, employ exactly this device for *global constants* — namely `∅` and `∞` — where we need a permanent, named term that persists across the development. Those are purely axiomatic, computationally opaque constants; we do not care about computational safety or constructive existence there, and the price of `Classical.choose` is justified by the need for a referent. For *local set-forming operations*, however, we deliberately refrain from doing so. There is simply no reason to extract a witness into `Type`, only to turn around and use that witness in a proof context. Lean already supports extracting witnesses *within* a proof context (`obtain`, `rcases`, etc.) exactly because the elimination of $`\exists` in `Prop` is allowed as long as the target is also `Prop`. To pull the witness into `Type` via `Classical.choose` and then pass it back into a propositional context is to force a round-trip through a computational artifact which is both conceptually unnecessary and stylistically at odds with the proof-theoretic spirit of the development. We keep the existential where it belongs.
-
-*Second obstacle: quotient erasure.* Even if we bypassed Prop by writing the axiom directly in `Type` as a $`\Sigma`-type, there is a second problem. Recall from {ref "c1-s2-encoding"}[the Encoding chapter] that `ZFSet` is defined as a _quotient_ of `PSet` by extensional equivalence. `Quotient` erases the distinction between extensionally equivalent `PSet`s — a `ZFSet` is opaque. We cannot pattern-match on it, inspect its tree structure, count its elements, or extract an indexing type. The _only_ information a `ZFSet` carries is what the membership relation $`\in` tells us. If we somehow extracted a bare `ZFSet` from `axiom_pairing`, we would hold a set whose internal representation has been obliterated — a black box with no destructors.
-
-For the same reason, we also *cannot* return a $`\Sigma`-type (dependent pair) in `Type`:
-
-```lean+error
-def zfc_pair (A B : ZFSet)
-  : Σ' C : ZFSet, ∀ x, x ∈ C ↔ (x = A ∨ x = B) := by
-  have h := axiom_pairing A B   -- h : ∃ C, ... (in Prop)
-  -- cannot extract C from h to construct a Σ' value in Type
-```
-
-The attempt suffers from exactly the same Prop-elimination error — `h` is in `Prop`, so its witness `C` cannot cross into `Type` to build the `Σ'`.
-
-*Why this is not a problem.* Every set-forming operation we define in this book will return an $`\exists` proposition — exactly like `axiom_pairing`, `axiom_union`, and `axiom_powerset`. The reason this is acceptable is that we never need to perform term-level computation on `ZFSet` values. Our goal is to *prove theorems* about sets: that a certain set exists, that two sets are equal, that one is a subset of the other. These are all propositions (they live in `Prop`), and $`\exists` composes perfectly within `Prop` — we can chain existential hypotheses through `have`, `obtain`, `rcases`, and other proof tactics without ever needing to escape into `Type`. The witness `C` remains inside the proof, used only to establish further propositions, and is erased at runtime.
-
-Thus the pattern that recurs throughout the book is not $`\Sigma (S : \texttt{ZFSet}),\, \varphi(S)` in `Type`, but rather $`\exists S : \texttt{ZFSet},\, \varphi(S)` in `Prop` — a proposition asserting the existence of a set satisfying a specification, equipped with a proof that can be manipulated within the propositional fragment. The set itself stays opaque; the proof tells us everything we need.
 
 We now return to the remaining axioms. Separation lets us carve a subset out of a given set by a predicate. But what if we want to *transform* the elements of a set — applying a definable operation to each member and collecting the results? Separation alone cannot do this, because the outputs may not be subsets of the original domain. We need a stronger principle.
 
@@ -415,7 +426,7 @@ This axiom is independent of ZF; the system ZF + Choice is denoted ZFC. It is ne
 namespace ZFC
 
 axiom axiom_choice (A : ZFSet.{u}) :
-  (∀ x ∈ A, x ≠ ∅) →
+  (∀ x ∈ A, x ≠ null) →
   ∃ B : ZFSet.{u}, ∀ x ∈ A,
     ∃ y, y ∈ B ∧ y ∈ x ∧ ∀ z, z ∈ B ∧ z ∈ x → z = y
 
