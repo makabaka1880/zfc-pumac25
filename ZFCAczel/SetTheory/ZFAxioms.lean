@@ -296,7 +296,7 @@ namespace ZFC
 def ZFSubseteq (A B : ZFSet.{u}) : Prop :=
   ∀ (x : ZFSet.{u}), ZFSet.Mem x A → ZFSet.Mem x B
 
-infix:50 " ⊆ " => ZFSubseteq
+infix:64 " ⊆ " => ZFSubseteq
 
 axiom axiom_powerset (S : ZFSet.{u}) :
   ∃ P : ZFSet.{u}, ∀ (X : ZFSet.{u}), X ∈ P ↔ X ⊆ S

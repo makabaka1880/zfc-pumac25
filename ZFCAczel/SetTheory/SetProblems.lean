@@ -498,7 +498,7 @@ noncomputable def orderedPair
   (a b : ZFSet.{u}) : ZFSet.{u} :=
   zfc_set_of (exists_kuratowski_pair a b)
 
-notation "⟪" a ", " b "⟫" => orderedPair a b
+notation:60 "⟪" a ", " b "⟫" => orderedPair a b
 
 theorem orderedPair_spec (a b : ZFSet.{u})
   : ∀ z, z ∈ ⟪a, b⟫ ↔
@@ -671,5 +671,16 @@ theorem c1_s2_q4_exists_cart_prod (X Y : ZFSet.{u}) :
       rcases (h_upair a).mp ha with ( h_ax | h_ay )
       · rw [h_ax]; left; assumption
       · rw [h_ay]; right; assumption
+
+noncomputable def cartesian_product (X Y : ZFSet) : ZFSet
+  := zfc_set_of $ c1_s2_q4_exists_cart_prod X Y
+
+infix:70 " × " => cartesian_product
+
+theorem cartesian_product_spec
+  : ∀ a, a ∈ X × Y ↔ ∃ x y : ZFSet,
+    x ∈ X ∧ y ∈ Y ∧ a = ⟪x, y⟫ :=
+      zfc_set_of_spec $ c1_s2_q4_exists_cart_prod X Y
+
 end PUMAC26
 ```
