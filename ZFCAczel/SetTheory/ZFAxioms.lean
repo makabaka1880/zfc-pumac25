@@ -150,6 +150,31 @@ theorem axiom_ext (A B : ZFSet.{u}) :
     · intro hEq x
       rw [hEq]
 
+theorem ext_iff_of_specs {A B : ZFSet.{u}}
+  {φ ψ : ZFSet.{u} → Prop}
+    (hA : ∀ z, z ∈ A ↔ φ z) (hB : ∀ z, z ∈ B ↔ ψ z) :
+      A = B ↔ (∀ z, φ z ↔ ψ z) := by
+  constructor
+  · intro h_eq z
+    have hm := ((axiom_ext A B).mpr h_eq) z
+    rw [hA z, hB z] at hm
+    exact hm
+  · intro h_equiv
+    apply (axiom_ext A B).mp
+    intro z
+    rw [hA z, hB z]
+    apply h_equiv
+
+theorem ext_iff_of_spec_left {A B : ZFSet.{u}}
+    {φ : ZFSet.{u} → Prop} (hA : ∀ z, z ∈ A ↔ φ z) :
+    A = B ↔ (∀ z, φ z ↔ z ∈ B) :=
+  ext_iff_of_specs hA (fun _ => Iff.rfl)
+
+theorem ext_iff_of_spec_right {A B : ZFSet.{u}}
+    {ψ : ZFSet.{u} → Prop} (hB : ∀ z, z ∈ B ↔ ψ z) :
+    A = B ↔ (∀ z, z ∈ A ↔ ψ z) :=
+  ext_iff_of_specs (fun _ => Iff.rfl) hB
+
 end ZFC
 ```
 
@@ -179,6 +204,7 @@ noncomputable def zfc_set_of {φ : ZFSet → Prop}
   (h : ∃ S : ZFSet, ∀ x, x ∈ S ↔ φ x) :
     ZFSet := Classical.choose h
 
+@[simp]
 theorem zfc_set_of_spec {φ : ZFSet → Prop}
   (h : ∃ S : ZFSet, ∀ x, x ∈ S ↔ φ x) :
     ∀ x, x ∈ zfc_set_of h ↔ φ x :=
@@ -194,6 +220,16 @@ The rule of thumb: prove theorems as $`\exists` propositions; define `noncomputa
 > There exists a set with no elements that is unique up to extensional equality.
 > $$`\exists! \emptyset \, \forall x \, x \notin \emptyset`
 
+From now on, we will say a set is *unique* to mean it is unique up to extensional equality — i.e., any two sets satisfying the same membership condition are equal by `axiom_ext`. This is always the best we can do in a theory where a set is nothing more than its members, and it saves us from repeating the longer phrase at every construction. That is:
+
+> $$`\exists! x\, P(x) \iff \exists x\, P(x) \land (\forall x,y \, P(x) \land P(y) \implies x = y)`
+
+Or in the case where the only witness is a construction of interest, let's say, $`x_!` that satisfies $`P`, we can formulate the uniqueness constraint as a seperate sentence and fixing one of the bound variables:
+
+> $$`\forall x, P(x) \iff x = x_!`
+
+And that's what we do for the null set:
+
 ```lean
 namespace ZFC
 
@@ -202,6 +238,7 @@ axiom axiom_exists_null
 
 noncomputable def null : ZFSet.{u} :=
   zfc_set_of axiom_exists_null
+@[simp]
 theorem null_spec : ∀ x : ZFSet.{u}, x ∈ null ↔ False :=
   zfc_set_of_spec axiom_exists_null
 notation "∅" => null
@@ -268,6 +305,7 @@ axiom axiom_union (F : ZFSet.{u}) :
 noncomputable def fam_union (F : ZFSet.{u}) :
     ZFSet.{u} := zfc_set_of (axiom_union F)
 
+@[simp]
 theorem fam_union_spec (F : ZFSet.{u}) :
     ∀ x, x ∈ fam_union F ↔
       ∃ (S : ZFSet.{u}), x ∈ S ∧ S ∈ F :=
@@ -304,6 +342,7 @@ axiom axiom_powerset (S : ZFSet.{u}) :
 noncomputable def powerset (S : ZFSet.{u}) :
   ZFSet.{u} := zfc_set_of $ axiom_powerset S
 
+@[simp]
 theorem powerset_spec (S : ZFSet.{u}) :
   ∀ X, X ∈ powerset S ↔ X ⊆ S :=
     zfc_set_of_spec $ axiom_powerset S
@@ -330,7 +369,8 @@ noncomputable def set_from_pred
   (X : ZFSet.{u}) (φ : ZFSet → Prop)
     : ZFSet.{u} := zfc_set_of $ axiom_separation X φ
 
-theorem set_from_pre_spec
+@[simp]
+theorem set_from_pred_spec
   (X : ZFSet.{u}) (φ : ZFSet → Prop)
     : ∀ x, x ∈ set_from_pred X φ ↔ x ∈ X ∧ φ x :=
       zfc_set_of_spec $ axiom_separation X φ
@@ -367,6 +407,7 @@ def is_inductive (N : ZFSet) : Prop :=
 noncomputable def succ (X : ZFSet) : ZFSet
   := zfc_set_of $ exists_succ_for_all X
 
+@[simp]
 theorem succ_spec (X : ZFSet)
   : is_succ_of (succ X) X :=
     zfc_set_of_spec $ exists_succ_for_all X
@@ -390,6 +431,7 @@ axiom axiom_infinity
 noncomputable def inf : ZFSet :=
   Classical.choose axiom_infinity
 
+@[simp]
 theorem inf_spec
   : is_inductive inf :=
   Classical.choose_spec axiom_infinity
@@ -434,6 +476,7 @@ noncomputable def replacement_set
     (h_func : ∀ x y z, φ x y → φ x z → y = z) :=
       zfc_set_of $ axiom_replacement X φ h_func
 
+@[simp]
 theorem replacement_set_spec
   (X : ZFSet) (φ : ZFSet → ZFSet → Prop)
     (h_func : ∀ x y z, φ x y → φ x z → y = z)
